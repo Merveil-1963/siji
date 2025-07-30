@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des clés de sécurité - Justicia{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Gestion des clés de sécurité</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Explications -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Qu'est-ce qu'une clé de sécurité ?</h6>
+                        <p class="mb-0">Une clé de sécurité vous permet de vous connecter de manière plus sécurisée en utilisant :</p>
+                        <ul class="mb-0 mt-2">
+                            <li>L'empreinte digitale de votre téléphone</li>
+                            <li>La reconnaissance faciale de votre téléphone</li>
+                            <li>Un appareil de sécurité physique (clé USB)</li>
+                            <li>L'authentification biométrique de votre ordinateur</li>
+                        </ul>
+                    </div>
+
+                    <!-- Liste des clés existantes -->
+                    <h6 class="mb-3">Clés enregistrées</h6>
+                    {% if user.webauthn_credentials.all %}
+                        <div class="list-group mb-4">
+                            {% for credential in user.webauthn_credentials.all %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas fa-key me-2"></i>
+                                        {{ credential.device_name|default:"Appareil non nommé" }}
+                                        <small class="text-muted d-block">
+                                            Enregistré le {{ credential.created_at|date:"d/m/Y" }}
+                                        </small>
+                                    </div>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteCredential('{{ credential.id }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Aucune clé de sécurité enregistrée. Ajoutez une clé pour sécuriser votre compte.
+                        </div>
+                    {% endif %}
+
+                    <!-- Bouton pour ajouter une nouvelle clé -->
+                    <button class="btn btn-primary" onclick="registerNewCredential()">
+                        <i class="fas fa-plus me-2"></i>Ajouter une nouvelle clé
+                    </button>
+
+                    <!-- Instructions -->
+                    <div class="mt-4">
+                        <h6>Comment ajouter une clé ?</h6>
+                        <ol class="mb-0">
+                            <li>Cliquez sur "Ajouter une nouvelle clé"</li>
+                            <li>Donnez un nom à votre appareil (ex: "iPhone", "Ordinateur portable")</li>
+                            <li>Suivez les instructions de votre navigateur pour enregistrer votre empreinte digitale ou utiliser votre appareil de sécurité</li>
+                            <li>Une fois enregistrée, vous pourrez utiliser cette méthode pour vous connecter</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Fonction pour obtenir le token CSRF
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+async function registerNewCredential() {
+    try {
+        console.log('Starting WebAuthn registration...');
+        
+        // Vérifier si nous sommes sur 127.0.0.1 et rediriger vers localhost si nécessaire
+        if (window.location.hostname === '127.0.0.1') {
+            const newUrl = window.location.href.replace('127.0.0.1', 'localhost');
+            window.location.href = newUrl;
+            return;
+        }
+
+        const response = await fetch('/webauthn/register/begin/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const options = await response.json();
+        console.log('WebAuthn options from server:', options);
+
+        // Forcer l'utilisation de localhost
+        options.publicKey.rp.id = 'localhost';
+        const publicKeyOptions = {
+            ...options.publicKey,
+            challenge: base64ToBuffer(options.publicKey.challenge),
+            user: {
+                ...options.publicKey.user,
+                id: base64ToBuffer(options.publicKey.user.id)
+            }
+        };
+
+        console.log('Public key options for browser:', publicKeyOptions);
+        console.log('RP ID:', publicKeyOptions.rp.id);
+        console.log('Origin:', window.location.origin);
+
+        const credential = await navigator.credentials.create({
+            publicKey: publicKeyOptions
+        });
+
+        // Envoyer la clé au serveur
+        console.log('Sending credential to server...');
+        const completeResponse = await fetch('/webauthn/register/complete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                id: credential.id,
+                rawId: bufferToBase64(credential.rawId),
+                response: {
+                    attestationObject: bufferToBase64(credential.response.attestationObject),
+                    clientDataJSON: bufferToBase64(credential.response.clientDataJSON),
+                },
+                type: credential.type,
+                device_name: deviceName
+            })
+        });
+
+        if (!completeResponse.ok) {
+            const errorData = await completeResponse.json();
+            throw new Error(errorData.error || 'Erreur lors de la finalisation');
+        }
+
+        console.log('Registration completed successfully');
+        // Recharger la page pour afficher la nouvelle clé
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Erreur détaillée:', error);
+        console.error('Stack trace:', error.stack);
+        alert('Une erreur est survenue lors de l\'enregistrement de la clé: ' + error.message);
+    }
+}
+
+async function deleteCredential(credentialId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette clé ?')) return;
+
+    try {
+        const response = await fetch(`/webauthn/delete/${credentialId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors de la suppression');
+        }
+
+        window.location.reload();
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de la suppression de la clé: ' + error.message);
+    }
+}
+
+// Fonctions utilitaires pour la conversion base64/buffer
+function base64ToBuffer(base64) {
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+function bufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+</script>
+{% endblock %} 

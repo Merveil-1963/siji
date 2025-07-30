@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - Justicia{% endblock %}
+
+{% block extra_css %}
+<style>
+    .list-group-item {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .list-group-item:hover {
+        background-color: var(--light-bg);
+    }
+    
+    .list-group-item.active {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+    }
+    
+    .section {
+        transition: opacity 0.3s ease;
+    }
+    
+    .section.fade-out {
+        opacity: 0;
+    }
+    
+    .section.fade-in {
+        opacity: 1;
+    }
+    
+    .card {
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .card-header {
+        background-color: white;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding: 1rem;
+    }
+    
+    .form-control:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+    
+    .btn-primary {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+        padding: 0.5rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2980b9;
+        border-color: #2980b9;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Menu</h5>
+                    <div class="list-group">
+                        <button class="list-group-item list-group-item-action active" data-section="profile">
+                            <i class="fas fa-user me-2"></i> Profil
+                        </button>
+                        <button class="list-group-item list-group-item-action" data-section="security">
+                            <i class="fas fa-shield-alt me-2"></i> Sécurité
+                        </button>
+                        <button class="list-group-item list-group-item-action" data-section="notifications">
+                            <i class="fas fa-bell me-2"></i> Notifications
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <!-- Profile Section -->
+            <div id="profile" class="section fade-in">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Profil</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'update_profile' %}" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Nom d'utilisateur</label>
+                                <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
+                                <div class="invalid-feedback">
+                                    Veuillez entrer un nom d'utilisateur.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                                <div class="invalid-feedback">
+                                    Veuillez entrer une adresse email valide.
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Mettre à jour
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Section -->
+            <div id="security" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Sécurité</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="mb-3">Changer le mot de passe</h6>
+                        <form method="post" action="{% url 'change_password' %}" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="current_password" class="form-label">Mot de passe actuel</label>
+                                <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                <div class="invalid-feedback">
+                                    Veuillez entrer votre mot de passe actuel.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="new_password" class="form-label">Nouveau mot de passe</label>
+                                <input type="password" class="form-control" id="new_password" name="new_password" required 
+                                       pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$">
+                                <div class="invalid-feedback">
+                                    Le mot de passe doit contenir au moins 8 caractères, une lettre et un chiffre.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">Confirmer le mot de passe</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                <div class="invalid-feedback">
+                                    Les mots de passe ne correspondent pas.
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-key me-2"></i>Changer le mot de passe
+                            </button>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <h6 class="mb-3">Authentification à deux facteurs</h6>
+                        <p class="text-muted mb-3">Renforcez la sécurité de votre compte en activant l'authentification à deux facteurs.</p>
+                        <a href="{% url 'webauthn_manage' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-key me-2"></i>Gérer les clés de sécurité
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications Section -->
+            <div id="notifications" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Notifications</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'update_notifications' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="email_notifications" name="email_notifications" checked>
+                                    <label class="form-check-label" for="email_notifications">
+                                        <i class="fas fa-envelope me-2"></i>Notifications par email
+                                    </label>
+                                </div>
+                                <small class="text-muted">Recevez des notifications par email pour les mises à jour importantes.</small>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="sms_notifications" name="sms_notifications">
+                                    <label class="form-check-label" for="sms_notifications">
+                                        <i class="fas fa-sms me-2"></i>Notifications par SMS
+                                    </label>
+                                </div>
+                                <small class="text-muted">Recevez des notifications par SMS pour les alertes urgentes.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Enregistrer les préférences
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validation des formulaires
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+
+    // Validation du mot de passe
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    if (newPassword && confirmPassword) {
+        confirmPassword.addEventListener('input', function() {
+            if (this.value !== newPassword.value) {
+                this.setCustomValidity('Les mots de passe ne correspondent pas');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    }
+
+    // Gestionnaire d'événements pour les boutons du menu
+    document.querySelectorAll('.list-group-item').forEach(function(button) {
+        button.addEventListener('click', function() {
+            // Retirer la classe active de tous les boutons
+            document.querySelectorAll('.list-group-item').forEach(function(btn) {
+                btn.classList.remove('active');
+            });
+            
+            // Ajouter la classe active au bouton cliqué
+            this.classList.add('active');
+            
+            // Cacher toutes les sections avec animation
+            document.querySelectorAll('.section').forEach(function(section) {
+                section.classList.add('fade-out');
+                setTimeout(() => {
+                    section.style.display = 'none';
+                }, 300);
+            });
+            
+            // Afficher la section correspondante avec animation
+            const sectionId = this.getAttribute('data-section');
+            const section = document.getElementById(sectionId);
+            if (section) {
+                setTimeout(() => {
+                    section.style.display = 'block';
+                    section.classList.remove('fade-out');
+                    section.classList.add('fade-in');
+                }, 300);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

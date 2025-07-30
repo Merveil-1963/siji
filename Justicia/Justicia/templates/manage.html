@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title h4 mb-0">Gestion des méthodes d'authentification</h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Cette page vous permet de gérer vos méthodes d'authentification WebAuthn.
+                    </div>
+
+                    <div class="mb-4">
+                        <h3 class="h5">Méthodes d'authentification enregistrées</h3>
+                        <div class="list-group">
+                            <!-- Cette section sera remplie dynamiquement -->
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">Aucune méthode enregistrée</h5>
+                                </div>
+                                <p class="mb-1">Vous n'avez pas encore enregistré de méthode d'authentification.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
